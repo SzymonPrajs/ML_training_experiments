@@ -1,0 +1,55 @@
+# Minimal MNIST (PyTorch)
+
+Small MNIST training pipeline geared toward **few trainable parameters** and easy **manual experiment comparison**.
+
+## Setup
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install -U pip
+python -m pip install -r requirements.txt
+```
+
+## Train (downloads MNIST automatically)
+
+Run one experiment at a time (each creates a new folder in `runs/`):
+
+```bash
+python -m mnist.train --config configs/tiny_sgd_cosine.yaml --run-name tiny_sgd_cosine
+python -m mnist.train --config configs/tiny_adamw.yaml --run-name tiny_adamw
+python -m mnist.train --config configs/tiny_rmsprop.yaml --run-name tiny_rmsprop
+```
+
+The default configs use a small CNN (~24k trainable params) and should reach ~99.3%+ test accuracy in ~20 epochs on MNIST.
+
+By default, the trainer uses `mps` if available (Apple Silicon), otherwise `cuda`, otherwise `cpu`.
+
+Quick overrides for ad-hoc experiments:
+
+```bash
+python -m mnist.train --config configs/tiny_sgd_cosine.yaml --run-name lr_test --set optimizer.lr=0.05
+```
+
+## Run All Configs
+
+Run every `*.yaml` in `configs/` sequentially and print a final summary table:
+
+```bash
+python -m mnist.run_all --plot reports/all.png
+```
+
+## Compare runs (tables + plots)
+
+```bash
+python -m mnist.compare --runs runs/tiny_sgd_cosine runs/tiny_adamw runs/tiny_rmsprop --plot reports/compare.png
+```
+
+This prints a markdown table to stdout and writes an optional plot.
+
+## What gets saved per run
+
+- `runs/<run>/config.yaml` (resolved config)
+- `runs/<run>/metrics.csv` (epoch metrics)
+- `runs/<run>/summary.json` (best/final metrics + param count)
+- `runs/<run>/best.pt` (best model checkpoint by test accuracy)
