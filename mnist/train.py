@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import time
 from pathlib import Path
 from typing import Any
 
@@ -17,8 +18,11 @@ from mnist.utils import (
     EpochTimer,
     ensure_unique_run_dir,
     get_env_summary,
+    get_git_summary,
+    now_iso,
     resolve_device,
     seed_everything,
+    stable_sha256,
     write_json,
 )
 
@@ -181,10 +185,22 @@ def parse_args() -> argparse.Namespace:
 
 
 def train_run(
-    cfg: dict[str, Any], *, run_name: str, run_root: Path = Path("runs")
+    cfg: dict[str, Any],
+    *,
+    run_name: str,
+    run_root: Path = Path("runs"),
+    meta: dict[str, Any] | None = None,
 ) -> Path:
+    meta_out: dict[str, Any] = dict(meta or {})
+    meta_out["run_name"] = run_name
+    meta_out["started_at"] = now_iso()
+    started_perf = time.perf_counter()
+    meta_out["config_hash"] = stable_sha256(cfg)[:12]
+    meta_out["git"] = get_git_summary()
+
     seed_everything(int(cfg["seed"]))
     device = resolve_device(str(cfg.get("device", "auto")))
+    meta_out["device"] = str(device)
 
     run_dir = ensure_unique_run_dir(run_root, run_name)
     run_dir.mkdir(parents=True, exist_ok=False)
@@ -259,22 +275,38 @@ def train_run(
         )
 
     final_test = evaluate(model, test_loader, loss_fn, device)
+    meta_out["finished_at"] = now_iso()
+    meta_out["duration_seconds"] = time.perf_counter() - started_perf
+    write_json(run_dir / "meta.json", meta_out)
     write_json(
         run_dir / "summary.json",
         {
+            "run_id": str(meta_out.get("run_id", run_dir.name)),
+            "batch_id": str(meta_out.get("batch_id", "")),
             "run_dir": str(run_dir),
+            "run_name": run_name,
+            "started_at": str(meta_out.get("started_at", "")),
+            "finished_at": str(meta_out.get("finished_at", "")),
+            "config_path": str(meta_out.get("config_path", "")),
+            "config_hash": str(meta_out.get("config_hash", "")),
+            "git_commit": str(meta_out.get("git", {}).get("commit", "")),
+            "git_dirty": bool(meta_out.get("git", {}).get("dirty", False)),
+            "device": str(meta_out.get("device", "")),
+            "torch": str(torch.__version__),
+            "overrides": meta_out.get("overrides", []),
             "param_count": param_count,
             "best_test_acc": best_acc,
             "best_epoch": best_epoch,
             "final_test_acc": float(final_test["acc"]),
             "final_test_loss": float(final_test["loss"]),
+            "duration_seconds": float(meta_out.get("duration_seconds", 0.0)),
         },
     )
 
-    # lightweight "latest" pointer for convenience
-    (run_root / "latest").unlink(missing_ok=True)
+    # lightweight "latest_run" pointer for convenience
+    (run_root / "latest_run").unlink(missing_ok=True)
     try:
-        (run_root / "latest").symlink_to(run_dir.name)
+        (run_root / "latest_run").symlink_to(run_dir.name)
     except Exception:
         pass
 

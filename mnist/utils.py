@@ -1,9 +1,12 @@
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import random
+import subprocess
 import time
+from datetime import datetime, timezone
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -45,6 +48,10 @@ def now_timestamp() -> str:
     return time.strftime("%Y%m%d-%H%M%S")
 
 
+def now_iso() -> str:
+    return datetime.now(timezone.utc).astimezone().isoformat(timespec="seconds")
+
+
 def ensure_unique_run_dir(root: Path, run_name: str) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     candidate = root / run_name
@@ -56,6 +63,25 @@ def ensure_unique_run_dir(root: Path, run_name: str) -> Path:
 
 def write_json(path: Path, data: dict[str, Any]) -> None:
     path.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n")
+
+
+def stable_sha256(data: Any) -> str:
+    payload = json.dumps(data, sort_keys=True, separators=(",", ":"), default=str).encode()
+    return hashlib.sha256(payload).hexdigest()
+
+
+def get_git_summary(cwd: Path | None = None) -> dict[str, Any]:
+    try:
+        cwd = Path.cwd() if cwd is None else cwd
+        commit = subprocess.check_output(
+            ["git", "rev-parse", "--short", "HEAD"], cwd=str(cwd), text=True
+        ).strip()
+        dirty = subprocess.check_output(
+            ["git", "status", "--porcelain"], cwd=str(cwd), text=True
+        ).strip()
+        return {"commit": commit, "dirty": bool(dirty)}
+    except Exception:
+        return {}
 
 
 @dataclass

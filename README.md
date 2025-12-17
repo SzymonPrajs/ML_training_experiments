@@ -36,13 +36,29 @@ python -m mnist.train --config configs/tiny_sgd_cosine.yaml --run-name lr_test -
 Run every `*.yaml` in `configs/` sequentially and print a final summary table:
 
 ```bash
-python -m mnist.run_all --plot reports/all.png
+python -m mnist.run_all
+```
+
+This creates a new timestamped batch directory under `runs/` and writes:
+
+- `reports/compare.png` (curves for `test_acc`, `test_loss`, `train_loss`, `lr`)
+- `reports/pareto.png` (params vs best accuracy)
+- `reports/time_to_acc.png` (`test_acc` vs cumulative seconds)
+- `reports/summary.md` (table)
+- `reports/runs.csv` (per-run summaries)
+- `reports/batch.json` (batch metadata)
+
+List batches and runs:
+
+```bash
+python -m mnist.list_runs
+python -m mnist.list_runs --batch runs/latest
 ```
 
 ## Compare runs (tables + plots)
 
 ```bash
-python -m mnist.compare --runs runs/tiny_sgd_cosine runs/tiny_adamw runs/tiny_rmsprop --plot reports/compare.png
+python -m mnist.compare --runs runs/latest --plot reports/compare.png --pareto reports/pareto.png
 ```
 
 This prints a markdown table to stdout and writes an optional plot.
