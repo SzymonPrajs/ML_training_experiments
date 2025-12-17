@@ -16,12 +16,15 @@ python -m pip install -r requirements.txt
 Run one experiment at a time (each creates a new folder in `runs/`):
 
 ```bash
+python -m mnist.train --config configs/cnn_4_8_16_sgd_cosine_30e.yaml --run-name cnn_4_8_16_30e
 python -m mnist.train --config configs/tiny_sgd_cosine.yaml --run-name tiny_sgd_cosine
 python -m mnist.train --config configs/tiny_adamw.yaml --run-name tiny_adamw
 python -m mnist.train --config configs/tiny_rmsprop.yaml --run-name tiny_rmsprop
 ```
 
-The default configs use a small CNN (~24k trainable params) and should reach ~99.3%+ test accuracy in ~20 epochs on MNIST.
+Recommended minimal model: `configs/cnn_4_8_16_sgd_cosine_30e.yaml` (~4k trainable params) reaches ~99%+ test accuracy (30 epochs).
+
+The `tiny_*.yaml` configs use a slightly larger CNN (~24k trainable params) and should reach ~99.3%+ test accuracy in ~20 epochs on MNIST.
 
 By default, the trainer uses `mps` if available (Apple Silicon), otherwise `cuda`, otherwise `cpu`.
 
@@ -37,6 +40,12 @@ Run every `*.yaml` in `configs/` sequentially and print a final summary table:
 
 ```bash
 python -m mnist.run_all
+```
+
+To run the exploratory configs in `configs/search/`:
+
+```bash
+python -m mnist.run_all --configs-dir configs/search
 ```
 
 This creates a new timestamped batch directory under `runs/` and writes:
