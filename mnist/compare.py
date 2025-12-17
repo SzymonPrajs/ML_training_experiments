@@ -9,6 +9,7 @@ from typing import Any
 import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.ticker import MaxNLocator, PercentFormatter
 
 
 def load_summary(path: Path) -> dict[str, Any]:
@@ -88,16 +89,49 @@ def compare_runs(
     if plot_path:
         plot_path.parent.mkdir(parents=True, exist_ok=True)
         plt.figure(figsize=(8, 4.5))
+        all_epochs: list[int] = []
+        metric_lower = metric.lower()
+        is_accuracy = metric_lower.endswith("_acc") or metric_lower in {"acc", "accuracy"}
+
         for run_name, metrics_rows in curves.items():
             if not metrics_rows:
                 continue
-            xs = [int(m["epoch"]) for m in metrics_rows if "epoch" in m]
-            ys = [float(m.get(metric, 0.0)) for m in metrics_rows]
-            plt.plot(xs, ys, label=run_name)
+            sorted_rows = sorted(
+                (m for m in metrics_rows if "epoch" in m),
+                key=lambda m: int(m["epoch"]),
+            )
+            xs = [int(m["epoch"]) for m in sorted_rows]
+            ys = [float(m.get(metric, 0.0)) for m in sorted_rows]
+            all_epochs.extend(xs)
+
+            if len(xs) <= 1:
+                plt.plot(xs, ys, marker="o", linestyle="None", markersize=6, label=run_name)
+            elif len(xs) <= 3:
+                plt.plot(xs, ys, marker="o", linestyle="-", linewidth=1.5, markersize=4, label=run_name)
+            else:
+                plt.plot(xs, ys, linestyle="-", linewidth=1.8, label=run_name)
+
         plt.xlabel("epoch")
         plt.ylabel(metric)
         plt.title(f"{metric} vs epoch")
         plt.grid(True, alpha=0.3)
+        ax = plt.gca()
+        if all_epochs:
+            min_e = min(all_epochs)
+            max_e = max(all_epochs)
+            if min_e == max_e:
+                ax.set_xlim(min_e - 0.5, max_e + 0.5)
+                ax.set_xticks([min_e])
+            else:
+                ax.set_xlim(min_e, max_e)
+                span = max_e - min_e
+                if span <= 25:
+                    ax.set_xticks(list(range(min_e, max_e + 1)))
+                else:
+                    ax.xaxis.set_major_locator(MaxNLocator(integer=True))
+
+        if is_accuracy:
+            ax.yaxis.set_major_formatter(PercentFormatter(xmax=1.0))
         plt.legend()
         plt.tight_layout()
         plt.savefig(plot_path, dpi=150)
