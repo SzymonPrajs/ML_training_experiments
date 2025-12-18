@@ -1,0 +1,32 @@
+seed: 1
+device: auto
+
+data:
+  root: data
+  batch_size: 256
+  num_workers: 2
+  pin_memory: true
+  augment:
+    enabled: false
+
+model:
+  name: manual_features_linear
+  pooled_sizes: [7, 4]
+  projections: true
+  moments: true
+  clamp_unnormalized: true
+  dropout: 0.0
+
+train:
+  epochs: 10
+  label_smoothing: 0.0
+  grad_clip_norm: 1.0
+
+optimizer:
+  name: adamw
+  lr: 0.01
+  betas: [0.9, 0.999]
+  weight_decay: 0.0
+
+scheduler:
+  name: none

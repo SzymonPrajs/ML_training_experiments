@@ -262,7 +262,18 @@ def plot_time_to_acc(
 
 
 def _plot_curves(curves: dict[str, list[dict[str, Any]]], metrics: list[str], plot_path: Path) -> None:
-    metrics = [m.strip() for m in metrics if m.strip()]
+    requested = [m.strip() for m in metrics if m.strip()]
+    if not requested:
+        return
+
+    def _metric_available(metric: str) -> bool:
+        for rows in curves.values():
+            for r in rows or []:
+                if metric in r and r.get(metric) not in (None, ""):
+                    return True
+        return False
+
+    metrics = [m for m in requested if _metric_available(m)]
     if not metrics:
         return
 
@@ -307,7 +318,16 @@ def _plot_curves(curves: dict[str, list[dict[str, Any]]], metrics: list[str], pl
         xs = [int(m["epoch"]) for m in sorted_rows]
         all_epochs.extend(xs)
         for idx, metric in enumerate(metrics):
-            ys = [float(m.get(metric, 0.0)) for m in sorted_rows]
+            ys: list[float] = []
+            for m in sorted_rows:
+                v = m.get(metric, None)
+                if v in (None, ""):
+                    ys.append(float("nan"))
+                else:
+                    try:
+                        ys.append(float(v))
+                    except Exception:
+                        ys.append(float("nan"))
             ax = axes_flat[idx]
             label = run_label if idx == 0 else None
             color = color_map.get(run_label, None)
