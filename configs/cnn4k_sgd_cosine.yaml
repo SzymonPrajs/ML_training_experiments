@@ -21,7 +21,7 @@ model:
   extra_3x3: true
 
 train:
-  epochs: 30
+  epochs: 20
   label_smoothing: 0.0
   grad_clip_norm: 1.0
 
@@ -30,7 +30,7 @@ optimizer:
   lr: 0.1
   momentum: 0.9
   nesterov: true
-  weight_decay: 0.0005
+  weight_decay: 0.0
 
 scheduler:
   name: cosine

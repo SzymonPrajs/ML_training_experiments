@@ -14,9 +14,9 @@ data:
 
 model:
   name: tiny_cnn
-  width1: 6
-  width2: 12
-  width3: 24
+  width1: 4
+  width2: 8
+  width3: 16
   dropout: 0.0
   extra_3x3: true
 
@@ -26,14 +26,13 @@ train:
   grad_clip_norm: 1.0
 
 optimizer:
-  name: sgd
-  lr: 0.1
-  momentum: 0.9
-  nesterov: true
-  weight_decay: 0.0005
+  name: adamw
+  lr: 0.01
+  betas: [0.9, 0.999]
+  weight_decay: 0.0
 
 scheduler:
   name: cosine
   warmup_epochs: 1
-  min_lr: 0.0
+  min_lr: 0.0001
 

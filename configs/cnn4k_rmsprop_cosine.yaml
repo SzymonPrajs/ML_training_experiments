@@ -13,11 +13,12 @@ data:
     scale: 0.1
 
 model:
-  name: tiny_dscnn
+  name: tiny_cnn
   width1: 4
   width2: 8
   width3: 16
   dropout: 0.0
+  extra_3x3: true
 
 train:
   epochs: 20
@@ -25,11 +26,11 @@ train:
   grad_clip_norm: 1.0
 
 optimizer:
-  name: sgd
-  lr: 0.1
+  name: rmsprop
+  lr: 0.01
   momentum: 0.9
-  nesterov: true
-  weight_decay: 0.0005
+  alpha: 0.99
+  weight_decay: 0.0
 
 scheduler:
   name: cosine
