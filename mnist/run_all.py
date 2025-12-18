@@ -14,6 +14,7 @@ from mnist.compare import compare_runs, load_summary, plot_time_to_acc
 from mnist.config import load_config
 from mnist.train import train_run
 from mnist.utils import get_git_summary, now_iso, now_timestamp, write_json
+from mnist.viz import generate_run_viz
 
 
 def _discover_configs(configs_dir: Path, pattern: str) -> list[Path]:
@@ -49,6 +50,17 @@ def parse_args() -> argparse.Namespace:
         "--continue-on-error",
         action="store_true",
         help="Continue with remaining configs if one fails.",
+    )
+    p.add_argument(
+        "--no-viz",
+        action="store_true",
+        help="Skip per-run kernel/activation visualization plots.",
+    )
+    p.add_argument(
+        "--viz-sample-index",
+        type=int,
+        default=0,
+        help="MNIST test-set index to visualize (default: 0).",
     )
     return p.parse_args()
 
@@ -139,6 +151,7 @@ def main() -> None:
     print(f"Batch: {batch_id}")
     run_dirs: list[Path] = []
     failures: list[dict[str, Any]] = []
+    viz_failures: list[dict[str, Any]] = []
 
     for i, config_path in enumerate(configs, start=1):
         run_name = config_path.stem
@@ -164,6 +177,27 @@ def main() -> None:
             best_acc = float(summary.get("best_test_acc", 0.0)) * 100.0
             params = int(summary.get("param_count", 0))
             print(f"Done: {run_dir} | best_acc={best_acc:.2f}% | params={params}")
+
+            if not args.no_viz:
+                try:
+                    viz_root = generate_run_viz(
+                        run_dir, sample_index=int(args.viz_sample_index)
+                    )
+                    dest = reports_dir / "viz" / run_name
+                    if dest.exists():
+                        shutil.rmtree(dest)
+                    shutil.copytree(viz_root, dest)
+                    print(f"Viz: {dest}")
+                except Exception as exc:
+                    viz_failures.append(
+                        {
+                            "run_name": run_name,
+                            "run_dir": str(run_dir),
+                            "error": repr(exc),
+                            "traceback": traceback.format_exc(),
+                        }
+                    )
+                    print(f"VIZ FAILED: {run_name} -> {exc}", file=sys.stderr)
         except Exception as exc:
             failures.append(
                 {
@@ -202,6 +236,7 @@ def main() -> None:
             f"- configs_dir: `{configs_dir}`\n"
             f"- pattern: `{args.pattern}`\n"
             f"- overrides: `{ ' '.join(list(args.set or [])) }`\n"
+            f"- viz: enabled={str(not args.no_viz).lower()} sample_index={int(args.viz_sample_index)} (see `reports/viz/`)\n"
             f"- git: `{git.get('commit', '')}` dirty={git.get('dirty', False)}\n\n"
             f"{table}\n"
         )
@@ -236,6 +271,11 @@ def main() -> None:
         "argv": list(sys.argv),
         "configs": [str(p) for p in configs],
         "runs": [str(p.relative_to(batch_dir)) for p in run_dirs],
+        "viz": {
+            "enabled": (not args.no_viz),
+            "sample_index": int(args.viz_sample_index),
+            "failures": viz_failures,
+        },
     }
     write_json(batch_dir / "batch.json", batch_meta)
     shutil.copyfile(batch_dir / "batch.json", reports_dir / "batch.json")

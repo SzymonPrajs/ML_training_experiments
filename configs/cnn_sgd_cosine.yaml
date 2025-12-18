@@ -21,19 +21,18 @@ model:
   extra_3x3: true
 
 train:
-  epochs: 20
+  epochs: 10
   label_smoothing: 0.0
   grad_clip_norm: 1.0
 
 optimizer:
-  name: rmsprop
-  lr: 0.01
+  name: sgd
+  lr: 0.1
   momentum: 0.9
-  alpha: 0.99
+  nesterov: true
   weight_decay: 0.0
 
 scheduler:
   name: cosine
   warmup_epochs: 1
   min_lr: 0.0
-

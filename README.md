@@ -16,19 +16,19 @@ python -m pip install -r requirements.txt
 Run one experiment at a time (each creates a new folder in `runs/`):
 
 ```bash
-python -m mnist.train --config configs/cnn4k_sgd_cosine.yaml --run-name cnn4k_sgd
-python -m mnist.train --config configs/cnn4k_rmsprop_cosine.yaml --run-name cnn4k_rmsprop
-python -m mnist.train --config configs/cnn4k_adamw_cosine.yaml --run-name cnn4k_adamw
+python -m mnist.train --config configs/cnn_sgd_cosine.yaml --run-name cnn_sgd
+python -m mnist.train --config configs/cnn_rmsprop_cosine.yaml --run-name cnn_rmsprop
+python -m mnist.train --config configs/cnn_adamw_cosine.yaml --run-name cnn_adamw
 ```
 
-These configs all use the same tiny CNN (~4k trainable params) and reach ~99% test accuracy in ~20 epochs.
+These configs all use the same tiny CNN (~4k trainable params) and target ~99% test accuracy in ~10 epochs.
 
 By default, the trainer uses `mps` if available (Apple Silicon), otherwise `cuda`, otherwise `cpu`.
 
 Quick overrides for ad-hoc experiments:
 
 ```bash
-python -m mnist.train --config configs/cnn4k_sgd_cosine.yaml --run-name lr_test --set optimizer.lr=0.05
+python -m mnist.train --config configs/cnn_sgd_cosine.yaml --run-name lr_test --set optimizer.lr=0.05
 ```
 
 ## Run All Configs
@@ -44,6 +44,7 @@ This creates a new timestamped batch directory under `runs/` and writes:
 - `reports/compare.png` (curves for `test_acc`, `test_loss`, `train_loss`, `lr`)
 - `reports/pareto.png` (params vs best accuracy)
 - `reports/time_to_acc.png` (`test_acc` vs cumulative seconds)
+- `reports/viz/<run_name>/...` (conv kernels + single-image activations per run)
 - `reports/summary.md` (table)
 - `reports/runs.csv` (per-run summaries)
 - `reports/batch.json` (batch metadata)
