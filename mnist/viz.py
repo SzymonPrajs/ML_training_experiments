@@ -296,162 +296,6 @@ def generate_activation_plots(
     return written
 
 
-def _save_class_weight_maps(
-    weight: torch.Tensor,
-    *,
-    size: int,
-    path: Path,
-    title: str,
-    cmap: str = "coolwarm",
-) -> None:
-    if weight.ndim != 2:
-        raise ValueError(f"Expected (C,D) weight matrix, got shape={tuple(weight.shape)}")
-    num_classes = int(weight.shape[0])
-    if int(weight.shape[1]) != int(size) * int(size):
-        raise ValueError(
-            f"Expected D={int(size)*int(size)} for size={size}, got D={int(weight.shape[1])}"
-        )
-    imgs = [
-        weight[c].detach().cpu().float().reshape(int(size), int(size)).numpy()
-        for c in range(num_classes)
-    ]
-    rows = 2 if num_classes == 10 else int(math.floor(math.sqrt(num_classes)))
-    cols = int(math.ceil(num_classes / max(rows, 1)))
-    mosaic = _make_mosaic(imgs, rows=rows, cols=cols, pad=1)
-    absmax = float(np.max(np.abs(mosaic))) if mosaic.size else 1.0
-    if absmax == 0.0:
-        absmax = 1.0
-    _save_heatmap(
-        mosaic,
-        path=path,
-        title=title,
-        cmap=cmap,
-        vmin=-absmax,
-        vmax=absmax,
-    )
-
-
-def generate_manual_feature_plots(
-    model: nn.Module,
-    *,
-    data_root: Path,
-    out_dir: Path,
-    run_name: str,
-    sample_index: int = 0,
-) -> list[Path]:
-    out_dir.mkdir(parents=True, exist_ok=True)
-
-    raw_x, x_norm, y = _load_test_sample(data_root=data_root, index=sample_index)
-    x = x_norm.unsqueeze(0)
-
-    model.eval()
-    with torch.no_grad():
-        logits = model(x)
-        pred = int(torch.argmax(logits, dim=1).item())
-
-    fig, ax = plt.subplots(figsize=(2.8, 2.8))
-    ax.imshow(raw_x[0].cpu().numpy(), cmap="gray", interpolation="nearest")
-    ax.set_title(f"test[{sample_index}] label={y} pred={pred}")
-    ax.axis("off")
-    input_path = out_dir / "input.png"
-    fig.tight_layout()
-    fig.savefig(input_path, dpi=200)
-    plt.close(fig)
-
-    parts: dict[str, torch.Tensor] = {}
-    if hasattr(model, "feature_extractor") and hasattr(model.feature_extractor, "extract_parts"):
-        with torch.no_grad():
-            parts = model.feature_extractor.extract_parts(x)
-
-    written: list[Path] = [input_path]
-
-    # Visualize pooled patches as small heatmaps.
-    for name, t in parts.items():
-        if not name.startswith("avg"):
-            continue
-        try:
-            size = int(name.replace("avg", ""))
-        except Exception:
-            continue
-        if t.ndim != 2 or t.shape[0] != 1 or t.shape[1] != size * size:
-            continue
-        arr = t[0].detach().cpu().float().reshape(size, size).numpy()
-        path = out_dir / f"features_{name}.png"
-        _save_heatmap(
-            arr,
-            path=path,
-            title=f"{run_name} | {name} feature map",
-            cmap="gray",
-            vmin=0.0,
-            vmax=1.0,
-        )
-        written.append(path)
-
-    # Projection curves (row/col means).
-    if "row_mean" in parts and "col_mean" in parts:
-        row = parts["row_mean"][0].detach().cpu().float().numpy()
-        col = parts["col_mean"][0].detach().cpu().float().numpy()
-        fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(7.8, 4.2), sharex=False)
-        axes[0].plot(np.arange(row.shape[0]), row)
-        axes[0].set_title(f"{run_name} | row_mean")
-        axes[0].set_xlabel("row")
-        axes[0].grid(True, alpha=0.3)
-        axes[1].plot(np.arange(col.shape[0]), col)
-        axes[1].set_title(f"{run_name} | col_mean")
-        axes[1].set_xlabel("col")
-        axes[1].grid(True, alpha=0.3)
-        fig.tight_layout()
-        path = out_dir / "features_projections.png"
-        fig.savefig(path, dpi=200)
-        plt.close(fig)
-        written.append(path)
-
-    # Moment features as a tiny bar chart.
-    if "moments" in parts and parts["moments"].ndim == 2 and parts["moments"].shape[1] == 5:
-        vals = parts["moments"][0].detach().cpu().float().numpy()
-        labels = ["mass_mean", "x_mean", "y_mean", "x_var", "y_var"]
-        fig, ax = plt.subplots(figsize=(7.8, 2.8))
-        ax.bar(np.arange(len(vals)), vals)
-        ax.set_xticks(np.arange(len(vals)))
-        ax.set_xticklabels(labels, rotation=25, ha="right")
-        ax.set_title(f"{run_name} | moments")
-        ax.grid(True, axis="y", alpha=0.3)
-        fig.tight_layout()
-        path = out_dir / "features_moments.png"
-        fig.savefig(path, dpi=200)
-        plt.close(fig)
-        written.append(path)
-
-    # Visualize per-class weights for pooled maps (if available).
-    if (
-        hasattr(model, "classifier")
-        and isinstance(model.classifier, nn.Linear)
-        and hasattr(model, "feature_extractor")
-        and hasattr(model.feature_extractor, "feature_slices")
-    ):
-        weight = model.classifier.weight.detach().cpu()
-        slices = model.feature_extractor.feature_slices
-        for key in slices:
-            if not key.startswith("avg"):
-                continue
-            try:
-                size = int(key.replace("avg", ""))
-            except Exception:
-                continue
-            sl = slices[key]
-            w_part = weight[:, sl]
-            path = out_dir / f"weights_{key}.png"
-            _save_class_weight_maps(
-                w_part,
-                size=size,
-                path=path,
-                title=f"{run_name} | classifier weights for {key} (class 0..9)",
-            )
-            written.append(path)
-
-    return written
-
-
 def generate_run_viz(run_dir: Path, *, sample_index: int = 0) -> Path:
     cfg = _load_cfg_from_run(run_dir)
     run_name = _get_run_name(run_dir)
@@ -463,22 +307,12 @@ def generate_run_viz(run_dir: Path, *, sample_index: int = 0) -> Path:
     kernels_dir = viz_root / "kernels"
     activations_dir = viz_root / "activations"
 
-    model_name = str(cfg.get("model", {}).get("name", ""))
-    if model_name == "manual_features_linear":
-        generate_manual_feature_plots(
-            model,
-            data_root=data_root,
-            out_dir=viz_root / "manual_features",
-            run_name=run_name,
-            sample_index=sample_index,
-        )
-    else:
-        generate_kernel_plots(model, out_dir=kernels_dir, run_name=run_name)
-        generate_activation_plots(
-            model,
-            data_root=data_root,
-            out_dir=activations_dir,
-            run_name=run_name,
-            sample_index=sample_index,
-        )
+    generate_kernel_plots(model, out_dir=kernels_dir, run_name=run_name)
+    generate_activation_plots(
+        model,
+        data_root=data_root,
+        out_dir=activations_dir,
+        run_name=run_name,
+        sample_index=sample_index,
+    )
     return viz_root
