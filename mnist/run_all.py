@@ -26,7 +26,7 @@ def parse_args() -> argparse.Namespace:
         description="Run all configs in a folder sequentially, then print a summary table."
     )
     p.add_argument("--configs-dir", type=str, default="configs")
-    p.add_argument("--pattern", type=str, default="*.yaml")
+    p.add_argument("--pattern", type=str, default="compare_*.yaml")
     p.add_argument("--runs-dir", type=str, default="runs")
     p.add_argument("--reports-dir", type=str, default="reports")
     p.add_argument(
