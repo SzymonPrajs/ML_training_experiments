@@ -217,6 +217,7 @@ def main() -> None:
         curve_plot = batch_dir / "compare.png"
         pareto_plot = batch_dir / "pareto.png"
         time_plot = batch_dir / "time_to_acc.png"
+        time_plot_compute = batch_dir / "time_to_acc_compute.png"
         print("\n=== Summary ===")
         table = compare_runs(
             run_dirs,
@@ -226,6 +227,9 @@ def main() -> None:
             label_key="run_name",
         )
         plot_time_to_acc(run_dirs, time_plot, label_key="run_name")
+        plot_time_to_acc(
+            run_dirs, time_plot_compute, label_key="run_name", time_key="compute_seconds"
+        )
         print(table)
 
         batch_finished_at = now_iso()
@@ -244,6 +248,8 @@ def main() -> None:
         shutil.copyfile(curve_plot, reports_dir / "compare.png")
         shutil.copyfile(pareto_plot, reports_dir / "pareto.png")
         shutil.copyfile(time_plot, reports_dir / "time_to_acc.png")
+        if time_plot_compute.exists():
+            shutil.copyfile(time_plot_compute, reports_dir / "time_to_acc_compute.png")
         (reports_dir / "summary.md").write_text(summary_md)
 
         summaries = [load_summary(r / "summary.json") for r in run_dirs]

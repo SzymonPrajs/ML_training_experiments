@@ -1,0 +1,50 @@
+seed: 1
+device: auto
+
+data:
+  root: data
+  batch_size: 256
+  num_workers: 2
+  pin_memory: true
+  augment:
+    enabled: true
+    degrees: 10
+    translate: 0.1
+    scale: 0.1
+
+model:
+  name: tiny_cnn
+  in_channels: 1
+  width1: 4
+  width2: 8
+  width3: 16
+  dropout: 0.0
+  extra_3x3: true
+
+train:
+  mode: forward_forward
+  epochs: 10
+  label_smoothing: 0.0
+  grad_clip_norm: 1.0
+
+ff:
+  label_mode: overlay
+  neg_mode: wrong_label
+  goodness: sum_sq
+  threshold: 2.0
+  loss_beta: 1.0
+  label_scale: 0.6
+  overlay_size: 10
+  compute_train_acc: false
+
+optimizer:
+  name: sgd
+  lr: 0.05
+  momentum: 0.9
+  nesterov: true
+  weight_decay: 0.0
+
+scheduler:
+  name: cosine
+  warmup_epochs: 1
+  min_lr: 0.0001

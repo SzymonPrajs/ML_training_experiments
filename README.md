@@ -48,6 +48,7 @@ This creates a new timestamped batch directory under `runs/` and writes:
 - `reports/summary.md` (table)
 - `reports/runs.csv` (per-run summaries)
 - `reports/batch.json` (batch metadata)
+- `reports/time_to_acc_compute.png` (test_acc vs compute-only seconds)
 
 List batches and runs:
 
@@ -63,6 +64,16 @@ python -m mnist.compare --runs runs/latest --plot reports/compare.png --pareto r
 ```
 
 This prints a markdown table to stdout and writes an optional plot.
+
+## Forward-Forward comparisons
+
+Forward-forward (FF) variants and an AdamW backprop baseline live under `configs/compare_*.yaml`:
+
+```bash
+python -m mnist.run_all --pattern "compare_*.yaml" --batch-name ff_compare
+```
+
+The summary table includes `compute_s` and `data_s`, and `reports/time_to_acc_compute.png` plots accuracy vs compute-only time.
 
 ## What gets saved per run
 

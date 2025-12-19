@@ -24,6 +24,7 @@ DEFAULT_CONFIG: dict[str, Any] = {
     },
     "model": {
         "name": "tiny_cnn",
+        "in_channels": 1,
         "width1": 10,
         "width2": 20,
         "width3": 40,
@@ -31,9 +32,30 @@ DEFAULT_CONFIG: dict[str, Any] = {
         "extra_3x3": True,
     },
     "train": {
+        "mode": "backprop",  # backprop|forward_forward|ff
         "epochs": 20,
         "label_smoothing": 0.0,
         "grad_clip_norm": 1.0,
+    },
+    "ff": {
+        "label_mode": "overlay",  # overlay|spatial_fourier|spatial_morph|none
+        "neg_mode": "wrong_label",  # wrong_label|scff
+        "goodness": "sum_sq",  # sum_sq|ed
+        "threshold": 2.0,
+        "loss_beta": 1.0,
+        "label_scale": 0.6,
+        "overlay_size": 10,
+        "fourier_terms": 4,
+        "fourier_max_freq": 6,
+        "fourier_seed": 0,
+        "morph_seed": 0,
+        "morph_dilate": 1,
+        "morph_erode": 0,
+        "morph_shift": 1,
+        "morph_scale": 1.0,
+        "noise_std": 0.0,
+        "compute_train_acc": False,
+        "num_classes": 10,
     },
     "optimizer": {
         "name": "sgd",

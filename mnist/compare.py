@@ -137,6 +137,8 @@ def compare_runs(
         "best_acc",
         "best_epoch",
         "duration_s",
+        "compute_s",
+        "data_s",
         "final_acc",
         "final_loss",
     ]
@@ -146,6 +148,14 @@ def compare_runs(
             duration_s = f"{float(s.get('duration_seconds', 0.0)):.1f}"
         except Exception:
             duration_s = str(s.get("duration_seconds", ""))
+        try:
+            compute_s = f"{float(s.get('total_compute_seconds', 0.0)):.1f}"
+        except Exception:
+            compute_s = str(s.get("total_compute_seconds", ""))
+        try:
+            data_s = f"{float(s.get('total_data_seconds', 0.0)):.1f}"
+        except Exception:
+            data_s = str(s.get("total_data_seconds", ""))
         rows.append(
             [
                 str(s.get("_label") or "run"),
@@ -156,6 +166,8 @@ def compare_runs(
                 f"{float(s.get('best_test_acc', 0.0))*100:.2f}%",
                 str(s.get("best_epoch", "")),
                 duration_s,
+                compute_s,
+                data_s,
                 f"{float(s.get('final_test_acc', 0.0))*100:.2f}%",
                 f"{float(s.get('final_test_loss', 0.0)):.4f}",
             ]
@@ -176,7 +188,11 @@ def compare_runs(
 
 
 def plot_time_to_acc(
-    run_dirs: list[Path], plot_path: Path, *, label_key: str = "run_id"
+    run_dirs: list[Path],
+    plot_path: Path,
+    *,
+    label_key: str = "run_id",
+    time_key: str = "seconds",
 ) -> None:
     entries: list[dict[str, Any]] = []
     for run_dir in run_dirs:
@@ -204,6 +220,7 @@ def plot_time_to_acc(
     base_counts = Counter(e["base_label"] for e in entries)
     used_labels: set[str] = set()
     curves: dict[str, tuple[list[float], list[float]]] = {}
+    has_time_key = False
     for e in entries:
         base = str(e["base_label"])
         summary = e["summary"]
@@ -229,12 +246,17 @@ def plot_time_to_acc(
         ys: list[float] = []
         total = 0.0
         for r in e["rows"]:
-            total += float(r.get("seconds", 0.0))
+            if time_key in r:
+                has_time_key = True
+            value = r.get(time_key, None)
+            if value is None:
+                value = r.get("seconds", 0.0)
+            total += float(value or 0.0)
             xs.append(total)
             ys.append(float(r.get("test_acc", 0.0)))
         curves[label] = (xs, ys)
 
-    if not curves:
+    if not curves or (time_key != "seconds" and not has_time_key):
         return
 
     fig, ax = plt.subplots(figsize=(9.0, 5.0))
@@ -427,6 +449,12 @@ def parse_args() -> argparse.Namespace:
         default=None,
         help="Write test_acc-vs-time plot PNG path (optional).",
     )
+    p.add_argument(
+        "--time-key",
+        type=str,
+        default="seconds",
+        help="metrics.csv column to use for time plots (default: seconds).",
+    )
     return p.parse_args()
 
 
@@ -444,7 +472,7 @@ def main() -> None:
     if pareto_path:
         print(f"Wrote pareto: {pareto_path}")
     if time_plot_path:
-        plot_time_to_acc(run_dirs, time_plot_path)
+        plot_time_to_acc(run_dirs, time_plot_path, time_key=str(args.time_key))
         print(f"Wrote time plot: {time_plot_path}")
 
 

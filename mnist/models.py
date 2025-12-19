@@ -46,6 +46,7 @@ class SepConvBNAct(nn.Module):
 
 @dataclass(frozen=True)
 class TinyDSCNNConfig:
+    in_channels: int = 1
     width1: int = 24
     width2: int = 48
     width3: int = 96
@@ -55,7 +56,7 @@ class TinyDSCNNConfig:
 class TinyDSCNN(nn.Module):
     def __init__(self, cfg: TinyDSCNNConfig):
         super().__init__()
-        self.stem = ConvBNAct(1, cfg.width1, k=3, s=1, p=1)
+        self.stem = ConvBNAct(cfg.in_channels, cfg.width1, k=3, s=1, p=1)
         self.block1 = SepConvBNAct(cfg.width1, cfg.width2, stride=2)  # 28 -> 14
         self.block2 = SepConvBNAct(cfg.width2, cfg.width3, stride=2)  # 14 -> 7
         self.head = nn.Sequential(
@@ -72,9 +73,30 @@ class TinyDSCNN(nn.Module):
         x = self.head(x)
         return x
 
+    def forward_with_activations(
+        self, x: torch.Tensor, *, detach_between: bool = False
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        acts: list[torch.Tensor] = []
+        x = self.stem(x)
+        acts.append(x)
+        if detach_between:
+            x = x.detach()
+        x = self.block1(x)
+        acts.append(x)
+        if detach_between:
+            x = x.detach()
+        x = self.block2(x)
+        acts.append(x)
+        if detach_between:
+            x = x.detach()
+        x = self.head(x)
+        acts.append(x)
+        return x, acts
+
 
 @dataclass(frozen=True)
 class TinyCNNConfig:
+    in_channels: int = 1
     width1: int = 16
     width2: int = 32
     width3: int = 64
@@ -86,7 +108,7 @@ class TinyCNN(nn.Module):
     def __init__(self, cfg: TinyCNNConfig):
         super().__init__()
         self.features = nn.Sequential(
-            ConvBNAct(1, cfg.width1, k=3, s=1, p=1),
+            ConvBNAct(cfg.in_channels, cfg.width1, k=3, s=1, p=1),
             ConvBNAct(cfg.width1, cfg.width2, k=3, s=1, p=1),
             nn.MaxPool2d(kernel_size=2),  # 28 -> 14
             ConvBNAct(cfg.width2, cfg.width3, k=3, s=1, p=1),
@@ -107,11 +129,39 @@ class TinyCNN(nn.Module):
         x = self.head(x)
         return x
 
+    def forward_with_activations(
+        self, x: torch.Tensor, *, detach_between: bool = False
+    ) -> tuple[torch.Tensor, list[torch.Tensor]]:
+        acts: list[torch.Tensor] = []
+        x = self.features[0](x)
+        acts.append(x)
+        if detach_between:
+            x = x.detach()
+        x = self.features[1](x)
+        acts.append(x)
+        if detach_between:
+            x = x.detach()
+        x = self.features[2](x)
+        x = self.features[3](x)
+        acts.append(x)
+        if detach_between:
+            x = x.detach()
+        x = self.features[4](x)
+        x = self.features[5](x)
+        if not isinstance(self.features[5], nn.Identity):
+            acts.append(x)
+            if detach_between:
+                x = x.detach()
+        x = self.head(x)
+        acts.append(x)
+        return x, acts
+
 
 def build_model(cfg: dict[str, Any]) -> nn.Module:
     name = str(cfg.get("name", "tiny_dscnn"))
     if name == "tiny_dscnn":
         model_cfg = TinyDSCNNConfig(
+            in_channels=int(cfg.get("in_channels", 1)),
             width1=int(cfg.get("width1", 24)),
             width2=int(cfg.get("width2", 48)),
             width3=int(cfg.get("width3", 96)),
@@ -120,6 +170,7 @@ def build_model(cfg: dict[str, Any]) -> nn.Module:
         return TinyDSCNN(model_cfg)
     if name == "tiny_cnn":
         model_cfg = TinyCNNConfig(
+            in_channels=int(cfg.get("in_channels", 1)),
             width1=int(cfg.get("width1", 16)),
             width2=int(cfg.get("width2", 32)),
             width3=int(cfg.get("width3", 64)),

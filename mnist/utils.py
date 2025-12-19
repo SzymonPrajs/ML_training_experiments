@@ -110,3 +110,14 @@ def get_env_summary(device: torch.device) -> dict[str, Any]:
         "mps_available": torch.backends.mps.is_available(),
         "cuda_available": torch.cuda.is_available(),
     }
+
+
+def sync_device(device: torch.device) -> None:
+    if device.type == "cuda":
+        torch.cuda.synchronize()
+        return
+    if device.type == "mps":
+        try:
+            torch.mps.synchronize()
+        except Exception:
+            pass
